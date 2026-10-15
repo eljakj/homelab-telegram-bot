@@ -1,0 +1,10 @@
+services:
+  telegram-bot:
+    image: ghcr.io/eljakj/homelab-telegram-bot:latest
+    container_name: telegram-bot
+    restart: unless-stopped
+    env_file:
+      - .env
+    labels:
+      # Picked up by the Watchtower instance already running on this host.
+      - "com.centurylinklabs.watchtower.enable=true"

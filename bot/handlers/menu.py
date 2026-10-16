@@ -1,4 +1,11 @@
-"""Builds and shows the inline-keyboard menus."""
+"""Builds and shows the inline-keyboard menus.
+
+Callback data uses ":" as the separator between the fixed action tokens and
+the dynamic part (a VM ID or a container name), e.g. "qemu:101" or
+"docker:3:vaultwarden". Using ":" instead of "_" means a container name is
+free to contain underscores or hyphens without breaking the parsing in
+handlers/actions.py.
+"""
 
 from __future__ import annotations
 
@@ -27,8 +34,8 @@ async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def host_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     kb = [
-        [InlineKeyboardButton("🔄 Reboot", callback_data="confirm_host_reboot")],
-        [InlineKeyboardButton("⏻ Shutdown", callback_data="confirm_host_shutdown")],
+        [InlineKeyboardButton("🔄 Reboot", callback_data="confirm_host:reboot")],
+        [InlineKeyboardButton("⏻ Shutdown", callback_data="confirm_host:shutdown")],
         [InlineKeyboardButton("◀️ Zurück", callback_data="menu_main")],
     ]
     await update.callback_query.edit_message_text("Proxmox-Host:", reply_markup=InlineKeyboardMarkup(kb))
@@ -40,9 +47,11 @@ async def vms_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
     kb = []
     for r in resources:
+        vtype = r.get("type")
+        vmid = r.get("vmid")
         icon = "🟢" if r.get("status") == "running" else "🔴"
-        label = f"{icon} {r.get('vmid')} {r.get('name')}"
-        kb.append([InlineKeyboardButton(label, callback_data=f"vm_{r.get('type')}_{r.get('vmid')}")])
+        label = f"{icon} {vmid} {r.get('name')}"
+        kb.append([InlineKeyboardButton(label, callback_data=f"{vtype}:{vmid}")])
     kb.append([InlineKeyboardButton("◀️ Zurück", callback_data="menu_main")])
 
     await update.callback_query.edit_message_text("VMs & Container:", reply_markup=InlineKeyboardMarkup(kb))
@@ -50,9 +59,9 @@ async def vms_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
 
 async def vm_detail_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, vtype: str, vmid: str) -> None:
     kb = [
-        [InlineKeyboardButton("▶️ Start", callback_data=f"do_{vtype}_start_{vmid}")],
-        [InlineKeyboardButton("🔄 Reboot", callback_data=f"confirm_{vtype}_reboot_{vmid}")],
-        [InlineKeyboardButton("⏹️ Stop", callback_data=f"confirm_{vtype}_stop_{vmid}")],
+        [InlineKeyboardButton("▶️ Start", callback_data=f"do_{vtype}:start:{vmid}")],
+        [InlineKeyboardButton("🔄 Reboot", callback_data=f"confirm_{vtype}:reboot:{vmid}")],
+        [InlineKeyboardButton("⏹️ Stop", callback_data=f"confirm_{vtype}:stop:{vmid}")],
         [InlineKeyboardButton("◀️ Zurück", callback_data="menu_vms")],
     ]
     await update.callback_query.edit_message_text(f"{vtype.upper()} {vmid}:", reply_markup=InlineKeyboardMarkup(kb))
@@ -60,23 +69,28 @@ async def vm_detail_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, vty
 
 async def docker_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     portainer = context.bot_data["portainer"]
-    containers = portainer.list_containers()
+    settings = context.bot_data["settings"]
 
     kb = []
-    for c in containers:
-        name = c["Names"][0].lstrip("/")
-        icon = "🟢" if c["State"] == "running" else "🔴"
-        kb.append([InlineKeyboardButton(f"{icon} {name}", callback_data=f"docker_{name}")])
+    for endpoint in settings.portainer_endpoints:
+        containers = portainer.list_containers(endpoint.id)
+        for c in containers:
+            name = c["Names"][0].lstrip("/")
+            icon = "🟢" if c["State"] == "running" else "🔴"
+            label = f"{icon} [{endpoint.label}] {name}"
+            kb.append([InlineKeyboardButton(label, callback_data=f"docker:{endpoint.id}:{name}")])
     kb.append([InlineKeyboardButton("◀️ Zurück", callback_data="menu_main")])
 
     await update.callback_query.edit_message_text("Docker-Container:", reply_markup=InlineKeyboardMarkup(kb))
 
 
-async def docker_detail_menu(update: Update, context: ContextTypes.DEFAULT_TYPE, name: str) -> None:
+async def docker_detail_menu(
+    update: Update, context: ContextTypes.DEFAULT_TYPE, endpoint_id: int, name: str
+) -> None:
     kb = [
-        [InlineKeyboardButton("▶️ Start", callback_data=f"do_docker_start_{name}")],
-        [InlineKeyboardButton("🔄 Restart", callback_data=f"confirm_docker_restart_{name}")],
-        [InlineKeyboardButton("⏹️ Stop", callback_data=f"confirm_docker_stop_{name}")],
+        [InlineKeyboardButton("▶️ Start", callback_data=f"do_docker:start:{endpoint_id}:{name}")],
+        [InlineKeyboardButton("🔄 Restart", callback_data=f"confirm_docker:restart:{endpoint_id}:{name}")],
+        [InlineKeyboardButton("⏹️ Stop", callback_data=f"confirm_docker:stop:{endpoint_id}:{name}")],
         [InlineKeyboardButton("◀️ Zurück", callback_data="menu_docker")],
     ]
     await update.callback_query.edit_message_text(f"Container: {name}", reply_markup=InlineKeyboardMarkup(kb))
@@ -87,5 +101,5 @@ async def ask_confirm(update: Update, context: ContextTypes.DEFAULT_TYPE, action
         [InlineKeyboardButton("✅ Bestätigen", callback_data=f"do_{action_data}")],
         [InlineKeyboardButton("❌ Abbrechen", callback_data="menu_main")],
     ]
-    label = action_data.replace("_", " ")
+    label = action_data.replace(":", " ")
     await update.callback_query.edit_message_text(f"Sicher? {label}", reply_markup=InlineKeyboardMarkup(kb))

@@ -24,6 +24,33 @@ def _require(name: str) -> str:
 
 
 @dataclass(frozen=True)
+class PortainerEndpoint:
+    """One Docker environment managed by Portainer (e.g. one VM)."""
+
+    id: int
+    label: str
+
+
+def _parse_endpoints(raw: str) -> tuple[PortainerEndpoint, ...]:
+    """Parses "3:VM101,4:VM103" into PortainerEndpoint(3, "VM101"), ...
+
+    The label is just what shows up in the bot's menu — it has no meaning
+    to Portainer itself. If omitted (just "3,4"), the numeric ID is reused
+    as the label.
+    """
+    endpoints = []
+    for item in raw.split(","):
+        item = item.strip()
+        if not item:
+            continue
+        id_str, _, label = item.partition(":")
+        endpoints.append(PortainerEndpoint(id=int(id_str), label=label or id_str))
+    if not endpoints:
+        sys.exit("PORTAINER_ENDPOINTS must list at least one endpoint, e.g. '3:VM101'")
+    return tuple(endpoints)
+
+
+@dataclass(frozen=True)
 class Settings:
     bot_token: str
     allowed_chat_id: int
@@ -35,7 +62,7 @@ class Settings:
 
     portainer_url: str
     portainer_api_token: str
-    portainer_endpoint_id: int
+    portainer_endpoints: tuple[PortainerEndpoint, ...]
 
     verify_tls: bool
 
@@ -50,6 +77,6 @@ def load_settings() -> Settings:
         proxmox_token_secret=_require("PROXMOX_TOKEN_SECRET"),
         portainer_url=_require("PORTAINER_URL").rstrip("/"),
         portainer_api_token=_require("PORTAINER_API_TOKEN"),
-        portainer_endpoint_id=int(_require("PORTAINER_ENDPOINT_ID")),
+        portainer_endpoints=_parse_endpoints(_require("PORTAINER_ENDPOINTS")),
         verify_tls=os.environ.get("VERIFY_TLS", "false").lower() == "true",
     )

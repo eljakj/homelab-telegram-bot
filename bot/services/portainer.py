@@ -1,4 +1,9 @@
-"""Portainer client — manages plain Docker containers via Portainer's API."""
+"""Portainer client — manages plain Docker containers via Portainer's API.
+
+Portainer can manage several Docker environments (one per host) through a
+single API; each call below takes an explicit endpoint_id so the bot can
+talk to all of them, not just one hardcoded host.
+"""
 
 from __future__ import annotations
 
@@ -18,9 +23,7 @@ class PortainerError(RuntimeError):
 
 class PortainerClient:
     def __init__(self, settings: Settings) -> None:
-        self._base_url = (
-            f"{settings.portainer_url}/api/endpoints/{settings.portainer_endpoint_id}/docker"
-        )
+        self._base_url = f"{settings.portainer_url}/api/endpoints"
         self._headers = {"X-API-Key": settings.portainer_api_token}
         self._verify = settings.verify_tls
 
@@ -38,9 +41,14 @@ class PortainerClient:
             return None
         return response.json()
 
-    def list_containers(self) -> list[dict]:
-        return self._request("GET", "/containers/json", params={"all": "true"}) or []
+    def list_containers(self, endpoint_id: int) -> list[dict]:
+        return (
+            self._request(
+                "GET", f"/{endpoint_id}/docker/containers/json", params={"all": "true"}
+            )
+            or []
+        )
 
-    def container_action(self, name: str, action: str) -> None:
+    def container_action(self, endpoint_id: int, name: str, action: str) -> None:
         """action: start | stop | restart"""
-        self._request("POST", f"/containers/{name}/{action}")
+        self._request("POST", f"/{endpoint_id}/docker/containers/{name}/{action}")

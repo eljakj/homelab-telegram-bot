@@ -18,21 +18,20 @@ logger = logging.getLogger(__name__)
 async def execute_action(update: Update, context: ContextTypes.DEFAULT_TYPE, action_data: str) -> None:
     proxmox = context.bot_data["proxmox"]
     portainer = context.bot_data["portainer"]
-    parts = action_data.split("_")
-    target = parts[0]
+    target, _, rest = action_data.partition(":")
 
     try:
         if target == "host":
-            command = "reboot" if parts[1] == "reboot" else "shutdown"
+            command = rest  # "reboot" or "shutdown"
             proxmox.node_power(command)
             msg = "🔄 Host wird neu gestartet..." if command == "reboot" else "⏻ Host wird heruntergefahren..."
         elif target in ("qemu", "lxc"):
-            action, vmid = parts[1], parts[2]
+            action, vmid = rest.split(":", 1)
             proxmox.vm_action(target, vmid, action)
             msg = f"✅ {target.upper()} {vmid}: {action} ausgeführt."
         elif target == "docker":
-            action, name = parts[1], parts[2]
-            portainer.container_action(name, action)
+            action, endpoint_id, name = rest.split(":", 2)
+            portainer.container_action(int(endpoint_id), name, action)
             msg = f"✅ Docker-Container {name}: {action} ausgeführt."
         else:
             msg = "Unbekannte Aktion."
@@ -60,12 +59,12 @@ async def button_handler(update: Update, context: ContextTypes.DEFAULT_TYPE) -> 
         await menu.vms_menu(update, context)
     elif data == "menu_docker":
         await menu.docker_menu(update, context)
-    elif data.startswith("vm_"):
-        _, vtype, vmid = data.split("_")
+    elif data.startswith("qemu:") or data.startswith("lxc:"):
+        vtype, vmid = data.split(":", 1)
         await menu.vm_detail_menu(update, context, vtype, vmid)
-    elif data.startswith("docker_"):
-        name = data.split("_", 1)[1]
-        await menu.docker_detail_menu(update, context, name)
+    elif data.startswith("docker:"):
+        _, endpoint_id, name = data.split(":", 2)
+        await menu.docker_detail_menu(update, context, int(endpoint_id), name)
     elif data.startswith("confirm_"):
         await menu.ask_confirm(update, context, data[len("confirm_"):])
     elif data.startswith("do_"):

@@ -3,8 +3,16 @@ services:
     image: ghcr.io/eljakj/homelab-telegram-bot:latest
     container_name: telegram-bot
     restart: unless-stopped
-    env_file:
-      - .env
+    environment:
+      BOT_TOKEN: ${BOT_TOKEN}
+      ALLOWED_CHAT_ID: ${ALLOWED_CHAT_ID}
+      PROXMOX_URL: ${PROXMOX_URL}
+      PROXMOX_NODE: ${PROXMOX_NODE}
+      PROXMOX_TOKEN_ID: ${PROXMOX_TOKEN_ID}
+      PROXMOX_TOKEN_SECRET: ${PROXMOX_TOKEN_SECRET}
+      PORTAINER_URL: ${PORTAINER_URL}
+      PORTAINER_API_TOKEN: ${PORTAINER_API_TOKEN}
+      PORTAINER_ENDPOINTS: ${PORTAINER_ENDPOINTS}
+      VERIFY_TLS: ${VERIFY_TLS}
     labels:
-      # Picked up by the Watchtower instance already running on this host.
       - "com.centurylinklabs.watchtower.enable=true"

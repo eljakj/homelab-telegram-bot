@@ -55,4 +55,10 @@ class PortainerClient:
 
     def container_action(self, endpoint_id: int, name: str, action: str) -> None:
         """action: start | stop | restart"""
-        self._request("POST", f"/{endpoint_id}/docker/containers/{name}/{action}")
+        # Docker's "start" endpoint rejects bodyless POSTs forwarded through
+        # Portainer's proxy as chunked requests with no Content-Length,
+        # misreading them as a (deprecated, pre-v1.24) non-empty body.
+        # Sending an explicit empty JSON object sidesteps that check.
+        # See: https://github.com/portainer/portainer/issues/9239
+        kwargs = {"json": {}} if action == "start" else {}
+        self._request("POST", f"/{endpoint_id}/docker/containers/{name}/{action}", **kwargs)

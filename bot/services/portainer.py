@@ -31,7 +31,7 @@ class PortainerClient:
         url = f"{self._base_url}{path}"
         try:
             response = requests.request(
-                method, url, headers=self._headers, timeout=10, verify=self._verify, **kwargs
+                method, url, headers=self._headers, timeout=30, verify=self._verify, **kwargs
             )
             response.raise_for_status()
         except requests.RequestException as exc:

@@ -34,6 +34,10 @@ class PortainerClient:
                 method, url, headers=self._headers, timeout=30, verify=self._verify, **kwargs
             )
             response.raise_for_status()
+        except requests.HTTPError as exc:
+            logger.exception("Portainer API request failed: %s %s", method, path)
+            detail = response.text.strip() or str(exc)
+            raise PortainerError(f"Portainer-API-Fehler ({response.status_code}): {detail}") from exc
         except requests.RequestException as exc:
             logger.exception("Portainer API request failed: %s %s", method, path)
             raise PortainerError(f"Portainer-API nicht erreichbar: {exc}") from exc

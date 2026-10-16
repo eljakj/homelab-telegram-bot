@@ -9,10 +9,14 @@ handlers/actions.py.
 
 from __future__ import annotations
 
+import logging
+
 from telegram import InlineKeyboardButton, InlineKeyboardMarkup, Update
 from telegram.ext import ContextTypes
 
 from ..auth import is_authorized
+
+logger = logging.getLogger(__name__)
 
 
 async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
@@ -28,8 +32,10 @@ async def main_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:
     text = "Was möchtest du steuern?"
     if update.callback_query:
         await update.callback_query.edit_message_text(text, reply_markup=InlineKeyboardMarkup(kb))
+    elif update.effective_message:
+        await update.effective_message.reply_text(text, reply_markup=InlineKeyboardMarkup(kb))
     else:
-        await update.message.reply_text(text, reply_markup=InlineKeyboardMarkup(kb))
+        logger.warning("main_menu called with neither callback_query nor message")
 
 
 async def host_menu(update: Update, context: ContextTypes.DEFAULT_TYPE) -> None:

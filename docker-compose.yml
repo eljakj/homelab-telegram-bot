@@ -1,7 +1,7 @@
 services:
   telegram-bot:
     image: ghcr.io/eljakj/homelab-telegram-bot:latest
-    container_name: telegram-bot
+    container_name: homelab-telegram-bot
     restart: unless-stopped
     environment:
       BOT_TOKEN: ${BOT_TOKEN}
